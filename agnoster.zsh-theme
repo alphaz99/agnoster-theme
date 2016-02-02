@@ -30,6 +30,7 @@ PRIMARY_FG=black
 
 # Characters
 SEGMENT_SEPARATOR="\ue0b0"
+RIGHT_SEGMENT_SEPARATOR="\ue0b2"
 PLUSMINUS="\u00b1"
 BRANCH="\ue0a0"
 DETACHED="\u27a6"
@@ -53,10 +54,36 @@ prompt_segment() {
   [[ -n $3 ]] && print -n $3
 }
 
+# Begin a segment
+# Takes two arguments, background and foreground. Both can be omitted,
+# rendering default background/foreground.
+prompt_segment_right() {
+  local bg fg
+  [[ -n $1 ]] && bg="%K{$1}" || bg="%k"
+  [[ -n $2 ]] && fg="%F{$2}" || fg="%f"
+  print -n "%{$bg%}%{$fg%}"
+  CURRENT_BG=$1
+  [[ -n $3 ]] && print -n $3
+  if [[ $CURRENT_BG != 'NONE' && $1 != $CURRENT_BG ]]; then
+    print -n "%{$bg%F{$CURRENT_BG}%}$RIGHT_SEGMENT_SEPARATOR%{$fg%}"
+  fi
+}
+
 # End the prompt, closing any open segments
 prompt_end() {
   if [[ -n $CURRENT_BG ]]; then
     print -n "%{%k%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR"
+  else
+    print -n "%{%k%}"
+  fi
+  print -n "%{%f%}"
+  CURRENT_BG=''
+}
+
+# End the prompt, closing any open segments
+prompt_end_right() {
+  if [[ -n $CURRENT_BG ]]; then
+    print -n "%{%k%F{$CURRENT_BG}%}$RIGHT_SEGMENT_SEPARATOR"
   else
     print -n "%{%k%}"
   fi
@@ -96,8 +123,10 @@ prompt_git() {
     else
       ref="$DETACHED ${ref/.../}"
     fi
-    prompt_segment $color $PRIMARY_FG
-    print -Pn " $ref"
+    CURRENT_BG=$color
+    prompt_end_right
+    prompt_segment_right $color $PRIMARY_FG " $ref"
+    #print -Pn "  $ref" 
   fi
 }
 
@@ -127,13 +156,19 @@ prompt_agnoster_main() {
   prompt_status
   prompt_context
   prompt_dir
-  prompt_git
   prompt_end
+}
+
+prompt_agnoster_right() {
+  RETVAL=$?
+  CURRENT_BG='NONE'
+  prompt_git
 }
 
 prompt_agnoster_precmd() {
   vcs_info
   PROMPT='%{%f%b%k%}$(prompt_agnoster_main) '
+  RPROMPT='%{%f%b%k%}$(prompt_agnoster_right)'
 }
 
 prompt_agnoster_setup() {
